@@ -43,3 +43,9 @@ jobs:
           githubToken: ${{ steps.skyramp-testbot-app-token.outputs.token }}
           githubAppId: ${{ secrets.SKYRAMP_TESTBOT_APP_ID }}
           githubAppPrivateKey: ${{ secrets.SKYRAMP_TESTBOT_APP_PRIVATE_KEY }}
+          targetSetupCommand: |
+            npm ci
+            setsid npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/mern-frontend-dev.log 2>&1 &
+            echo $! > /tmp/mern-frontend-dev.pid
+          targetReadyCheckCommand: curl -sf http://127.0.0.1:5173 || exit 1
+          targetTeardownCommand: kill -- -$(cat /tmp/mern-frontend-dev.pid) 2>/dev/null || true
