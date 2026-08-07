@@ -19,7 +19,7 @@ jobs:
 
       - name: Start preview server
         run: |
-          nohup npm run preview -- --host 127.0.0.1 --port 4173 > preview.log 2>&1 &
+          setsid npm run preview -- --host 127.0.0.1 --port 4173 > preview.log 2>&1 &
           echo $! > preview.pid
 
       - name: Wait for preview server and check content
@@ -35,4 +35,4 @@ jobs:
 
       - name: Teardown
         if: always()
-        run: kill "$(cat preview.pid)" 2>/dev/null || true
+        run: kill -- -"$(cat preview.pid)" 2>/dev/null || true
