@@ -44,9 +44,12 @@ jobs:
           githubAppId: ${{ secrets.SKYRAMP_TESTBOT_APP_ID }}
           githubAppPrivateKey: ${{ secrets.SKYRAMP_TESTBOT_APP_PRIVATE_KEY }}
           targetSetupCommand: |
-            npm ci
+            pnpm install --frozen-lockfile
             set -m
-            npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/mern-frontend-dev.log 2>&1 &
+            # NOTE: pnpm forwards script args directly — do NOT use npm's `--` separator.
+            # `pnpm run dev -- --port 5173` silently drops the args and Vite starts on
+            # its default port instead.
+            pnpm run dev --host 127.0.0.1 --port 5173 > /tmp/mern-frontend-dev.log 2>&1 &
             echo $! > /tmp/mern-frontend-dev.pid
           targetReadyCheckCommand: curl -sf http://127.0.0.1:5173 || exit 1
           targetTeardownCommand: kill -- -$(cat /tmp/mern-frontend-dev.pid) 2>/dev/null || true

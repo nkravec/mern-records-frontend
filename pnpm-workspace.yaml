@@ -1,0 +1,5 @@
+# pnpm >= 10 blocks dependency lifecycle scripts unless explicitly allowlisted,
+# and `pnpm install` exits non-zero when any are ignored — which would fail CI.
+# Cypress' postinstall downloads its binary, so it must be allowed.
+allowBuilds:
+  cypress: true
