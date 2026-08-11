@@ -12,3 +12,9 @@ overrides:
 # Cypress' postinstall downloads its binary, so it must be allowed.
 allowBuilds:
   cypress: true
+  # @skyramp/skyramp's postinstall downloads the platform-specific native
+  # library that the generated Playwright tests load at runtime. Without this
+  # the download never runs and the tests fail at import time.
+  "@skyramp/skyramp": true
+  # koffi is the FFI layer @skyramp/skyramp uses to load that native library.
+  koffi: true
