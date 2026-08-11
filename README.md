@@ -11,9 +11,13 @@ Not a product — a validation harness.
 ## Local run
 
 ```bash
-npm ci
-npm run dev        # dev server on localhost:5173, proxies /record to localhost:5050
+pnpm install --frozen-lockfile
+pnpm run dev       # dev server on localhost:5173, proxies /record to localhost:5050
 ```
+
+This project uses **pnpm** (see `packageManager` in `package.json`). Note pnpm
+forwards script arguments directly — use `pnpm run dev --port 3000`, not npm's
+`pnpm run dev -- --port 3000`, which silently drops the arguments.
 
 Requires `mern-records-backend` running locally for the app to actually
 load data (see that repo's README) — not required just to build/serve the
