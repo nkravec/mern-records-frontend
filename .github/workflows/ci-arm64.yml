@@ -44,6 +44,19 @@ jobs:
           BODY=$(curl -s http://127.0.0.1:4173/)
           echo "$BODY" | grep -q "MERN (MongoDB" || { echo "Expected title not found"; cat preview.log; exit 1; }
 
+      # Both downloads are required: Playwright ships chromium-headless-shell
+      # separately from chromium, and headless runs launch the shell — installing
+      # only `chromium` fails at launch with "Executable doesn't exist".
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install chromium chromium-headless-shell
+
+      # Runs the UI tests Skyramp Testbot generates into .skyramp/ (see
+      # playwright.config.ts). --pass-with-no-tests keeps this green on branches
+      # where no generated specs have been committed yet. The config's webServer
+      # block starts the dev server on :5173, which is what the specs target.
+      - name: Run generated Playwright tests
+        run: pnpm exec playwright test --pass-with-no-tests
+
       - name: Teardown
         if: always()
         run: kill -- -"$(cat preview.pid)" 2>/dev/null || true
