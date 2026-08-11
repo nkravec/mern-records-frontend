@@ -16,7 +16,7 @@ jobs:
     if: >-
       github.event_name == 'pull_request' ||
       (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@skyramp-testbot') && github.event.comment.user.login != 'skyramp-testbot[bot]')
-    runs-on: [self-hosted, arm64, fusion-mac]
+    runs-on: [self-hosted, arm64, macos-host]
     permissions:
       contents: write
       pull-requests: write
@@ -44,8 +44,12 @@ jobs:
           githubAppId: ${{ secrets.SKYRAMP_TESTBOT_APP_ID }}
           githubAppPrivateKey: ${{ secrets.SKYRAMP_TESTBOT_APP_PRIVATE_KEY }}
           targetSetupCommand: |
-            npm ci
-            setsid npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/mern-frontend-dev.log 2>&1 &
+            pnpm install --frozen-lockfile
+            set -m
+            # NOTE: pnpm forwards script args directly — do NOT use npm's `--` separator.
+            # `pnpm run dev -- --port 5173` silently drops the args and Vite starts on
+            # its default port instead.
+            pnpm run dev --host 127.0.0.1 --port 5173 > /tmp/mern-frontend-dev.log 2>&1 &
             echo $! > /tmp/mern-frontend-dev.pid
           targetReadyCheckCommand: curl -sf http://127.0.0.1:5173 || exit 1
           targetTeardownCommand: kill -- -$(cat /tmp/mern-frontend-dev.pid) 2>/dev/null || true

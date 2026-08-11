@@ -11,15 +11,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # This job runs on the fusion-mac Linux VM runner, which is provisioned with
+      # node/npm but not pnpm. Install it in-job rather than relying on host state,
+      # so the workflow is self-contained across both self-hosted runners.
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: npm run build
+        run: pnpm run build
 
       - name: Start preview server
         run: |
-          setsid npm run preview -- --host 127.0.0.1 --port 4173 > preview.log 2>&1 &
+          # NOTE: pnpm forwards script args directly — do NOT use npm's `--`
+          # separator, which pnpm silently swallows (Vite would then ignore
+          # --host/--port and bind its default port).
+          setsid pnpm run preview --host 127.0.0.1 --port 4173 > preview.log 2>&1 &
           echo $! > preview.pid
 
       - name: Wait for preview server and check content
@@ -32,6 +43,19 @@ jobs:
           done
           BODY=$(curl -s http://127.0.0.1:4173/)
           echo "$BODY" | grep -q "MERN (MongoDB" || { echo "Expected title not found"; cat preview.log; exit 1; }
+
+      # Both downloads are required: Playwright ships chromium-headless-shell
+      # separately from chromium, and headless runs launch the shell — installing
+      # only `chromium` fails at launch with "Executable doesn't exist".
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install chromium chromium-headless-shell
+
+      # Runs the UI tests Skyramp Testbot generates into .skyramp/ (see
+      # playwright.config.ts). --pass-with-no-tests keeps this green on branches
+      # where no generated specs have been committed yet. The config's webServer
+      # block starts the dev server on :5173, which is what the specs target.
+      - name: Run generated Playwright tests
+        run: pnpm exec playwright test --pass-with-no-tests
 
       - name: Teardown
         if: always()
