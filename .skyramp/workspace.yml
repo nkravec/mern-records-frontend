@@ -9,6 +9,9 @@ workspace:
   repoUrl: https://github.com/archit/mern-records-frontend.git
 metadata:
   schemaVersion: v1
+  # Required by strict validation. Matches what testbot v0.11.4 pulls by default,
+  # so this pins rather than changes the executor in use.
+  executorVersion: v1.3.35
 services:
   - serviceName: mern-records-frontend
     language: typescript
@@ -22,3 +25,7 @@ services:
       baseUrl: http://localhost:5173
     runtimeDetails:
       serverStartCommand: pnpm run dev --host 127.0.0.1 --port 5173
+      # Required by strict validation. Describes how the SUT itself runs — the
+      # Vite dev server runs directly on the host, not in a container. (Skyramp's
+      # test executor is a container regardless of this value.)
+      runtime: local
