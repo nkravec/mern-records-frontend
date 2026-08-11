@@ -3,7 +3,17 @@ name: arm64 runner validation
 on:
   push:
     branches: [main]
+  # Without this, validation only ran after merge — so a PR adding generated
+  # Playwright tests was never exercised by CI before landing.
+  pull_request:
   workflow_dispatch:
+
+# One self-hosted runner serves this and the Testbot workflow, so cap redundant
+# work: superseded pushes to a PR cancel their in-flight validation. Pushes to
+# main are never cancelled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   validate:

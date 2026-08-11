@@ -8,6 +8,7 @@ export default function Record() {
     level: "",
   });
   const [isNew, setIsNew] = useState(true);
+  const [positionError, setPositionError] = useState("");
   const params = useParams();
   const navigate = useNavigate();
 
@@ -55,6 +56,13 @@ export default function Record() {
   // This function will handle the submission.
   async function onSubmit(e) {
     e.preventDefault();
+    // A record without a position is not useful downstream, so block the
+    // submission client-side rather than persisting an incomplete record.
+    if (!form.position.trim()) {
+      setPositionError("Position is required.");
+      return;
+    }
+    setPositionError("");
     const person = { ...form };
     try {
       let response;
@@ -146,9 +154,15 @@ export default function Record() {
                     className="block flex-1 border-0 bg-transparent py-1.5 pl-1 text-slate-900 placeholder:text-slate-400 focus:ring-0 sm:text-sm sm:leading-6"
                     placeholder="Developer Advocate"
                     value={form.position}
-                    onChange={(e) => updateForm({ position: e.target.value })}
+                    onChange={(e) => {
+                      updateForm({ position: e.target.value });
+                      if (positionError) setPositionError("");
+                    }}
                   />
                 </div>
+                {positionError && (
+                  <p className="mt-2 text-sm text-red-600">{positionError}</p>
+                )}
               </div>
             </div>
             <div>
