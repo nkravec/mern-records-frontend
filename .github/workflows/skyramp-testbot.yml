@@ -48,5 +48,11 @@ jobs:
             set -m
             npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/mern-frontend-dev.log 2>&1 &
             echo $! > /tmp/mern-frontend-dev.pid
+            # SKYR-4135: last stdout line overrides the SUT base URL. Emit localhost —
+            # the MCP rewrites it to host.docker.internal on the way into the executor
+            # container (mcp src/services/containerEnv.ts). Without this the repo has no
+            # .skyramp/workspace.yml, so no base URL is resolved and generated UI tests
+            # target the container's own loopback and time out.
+            echo '{"baseUrl":"http://localhost:5173"}'
           targetReadyCheckCommand: curl -sf http://127.0.0.1:5173 || exit 1
           targetTeardownCommand: kill -- -$(cat /tmp/mern-frontend-dev.pid) 2>/dev/null || true
