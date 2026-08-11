@@ -1,0 +1,24 @@
+# Skyramp Workspace Configuration
+#
+# Exists primarily to declare `testDirectory`. Without it Testbot defaults to
+# writing generated specs into `.skyramp/`, which is a tool-private directory and
+# not where a JS project would look for tests. Pointing it at `tests/` means
+# Testbot writes and playwright.config.ts reads the same conventional location.
+workspace:
+  repoName: archit/mern-records-frontend
+  repoUrl: https://github.com/archit/mern-records-frontend.git
+metadata:
+  schemaVersion: v1
+services:
+  - serviceName: mern-records-frontend
+    language: typescript
+    framework: playwright
+    # Playwright's own default testDir. Kept out of `cypress/` (the existing
+    # Cypress suite) and deliberately not `tests/skyramp` — Skyramp's usual
+    # convention, but an oddly tool-specific name for a repo directory.
+    testDirectory: tests
+    api:
+      authType: none
+      baseUrl: http://localhost:5173
+    runtimeDetails:
+      serverStartCommand: pnpm run dev --host 127.0.0.1 --port 5173

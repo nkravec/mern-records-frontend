@@ -3,17 +3,16 @@ import { defineConfig, devices } from '@playwright/test';
 /**
  * Config for the UI tests Skyramp Testbot generates and commits.
  *
- * Testbot writes specs to `.skyramp/` by default (no `.skyramp/workspace.yml`
- * declares a testDirectory), so both that and a conventional `tests/` dir are
- * matched — otherwise default discovery finds nothing once the specs land.
+ * `tests/` is the single source of truth: `.skyramp/workspace.yml` declares
+ * `testDirectory: tests`, so Testbot writes generated specs there and this config
+ * reads from the same place. Keep the two in sync if either changes.
  *
  * Only `.spec.ts` is matched, which deliberately excludes the Cypress suite in
  * `cypress/integration/*.spec.js`.
  */
 export default defineConfig({
-  testDir: '.',
-  testMatch: ['.skyramp/**/*.spec.ts', 'tests/**/*.spec.ts'],
-  testIgnore: ['dist/**', 'node_modules/**'],
+  testDir: 'tests',
+  testMatch: '**/*.spec.ts',
 
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
