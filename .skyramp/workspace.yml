@@ -5,7 +5,7 @@ workspace:
 metadata:
   schemaVersion: v1
   executorVersion: v1.3.38
-  updatedAt: "2026-08-19T19:15:22.513Z"
+  updatedAt: "2026-08-19T19:57:32.744Z"
 services:
   - serviceName: mern-records-frontend
     language: typescript
@@ -25,7 +25,7 @@ services:
     api:
       authType: none
       authHeader: ""
-      baseUrl: http://localhost:5050/record
+      baseUrl: http://localhost:5050
     runtimeDetails:
       serverStartCommand: node --env-file=config.env server
       runtime: local
