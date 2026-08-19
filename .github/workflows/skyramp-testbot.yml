@@ -42,8 +42,12 @@ jobs:
 
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
+          # No `filter: blob:none` here. A partial clone fetches blobs lazily, and
+          # Testbot's `git diff <base-sha>` needs blobs this clone would not have.
+          # With persist-credentials: false there are no credentials for that lazy
+          # fetch, so git tries to prompt and the run dies with
+          # "could not read Username for https://github.com" / exit code 128.
           fetch-depth: 0
-          filter: blob:none
           path: mern-records-frontend
           token: ${{ steps.skyramp-testbot-app-token.outputs.token }}
           persist-credentials: false
@@ -58,7 +62,6 @@ jobs:
           repository: archit/mern-records-backend
           path: mern-records-backend
           fetch-depth: 0
-          filter: blob:none
           ref: ${{ inputs['mern-records-backend_ref'] || github.head_ref || github.ref_name }}
           token: ${{ steps.skyramp-testbot-app-token.outputs.token }}
           persist-credentials: false
@@ -69,7 +72,6 @@ jobs:
           repository: archit/mern-records-backend
           path: mern-records-backend
           fetch-depth: 0
-          filter: blob:none
           token: ${{ steps.skyramp-testbot-app-token.outputs.token }}
           persist-credentials: false
 
