@@ -23,7 +23,9 @@ jobs:
       github.event_name == 'pull_request' ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@skyramp-testbot') && github.event.comment.user.login != 'skyramp-testbot[bot]')
-    runs-on: 'ubuntu-latest'
+    # Self-hosted Apple Silicon runner. The Skyramp executor image is amd64-only,
+    # so this host runs Podman with applehv + Rosetta; see the macOS runner guide.
+    runs-on: [self-hosted, arm64, macos-host]
     permissions:
       contents: write
       pull-requests: write
@@ -36,7 +38,7 @@ jobs:
         with:
           app-id: ${{ secrets.SKYRAMP_TESTBOT_APP_ID }}
           private-key: ${{ secrets.SKYRAMP_TESTBOT_APP_PRIVATE_KEY }}
-          repositories: mern-records-frontend,restarts,mern-records-backend
+          repositories: mern-records-frontend,mern-records-backend
 
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -46,6 +48,9 @@ jobs:
           token: ${{ steps.skyramp-testbot-app-token.outputs.token }}
           persist-credentials: false
 
+      # Try the matching branch in the backend first, so a cross-repo change can be
+      # reviewed as one unit. Most frontend PRs have no backend counterpart, hence
+      # continue-on-error plus the default-branch fallback below.
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         id: skyramp-checkout-mern-records-backend
         continue-on-error: true
@@ -68,14 +73,6 @@ jobs:
           token: ${{ steps.skyramp-testbot-app-token.outputs.token }}
           persist-credentials: false
 
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          repository: archit/restarts
-          path: test-repo
-          fetch-depth: 0
-          token: ${{ steps.skyramp-testbot-app-token.outputs.token }}
-          persist-credentials: false
-
       - uses: skyramp/testbot@15b35b4f7fc705aa12e96bb0aa65e238738ccdb7 # v0.11.7
         with:
           skyrampLicenseFile: ${{ secrets.SKYRAMP_LICENSE_FILE }}
@@ -84,6 +81,91 @@ jobs:
           githubAppId: ${{ secrets.SKYRAMP_TESTBOT_APP_ID }}
           githubAppPrivateKey: ${{ secrets.SKYRAMP_TESTBOT_APP_PRIVATE_KEY }}
           workingDirectory: 'mern-records-frontend'
-          testRepoPath: test-repo
+          # Read-only extra context for analysis. Tests and the report still land
+          # in this repo (the primary checkout).
           relatedRepoPaths: |
             ./mern-records-backend
+
+          # All three target commands run with cwd = workingDirectory
+          # ($GITHUB_WORKSPACE/mern-records-frontend), so the backend is addressed
+          # through $GITHUB_WORKSPACE rather than a relative path.
+          #
+          # MongoDB is deliberately NOT managed here: it already runs on the runner
+          # host under Podman, publishing 27017. Note the backend's own
+          # docker-compose.yml is NOT what is running - the live container is named
+          # `MongoDB` (mongo:7.0). Only the two app services are managed per run.
+          targetSetupCommand: |
+            set -e
+
+            # This runner is self-hosted and keeps state between jobs, so a run that
+            # was cancelled can leave a server behind. Reap ours by pidfile.
+            for pidfile in /tmp/mern-frontend-dev.pid /tmp/mern-backend.pid; do
+              [ -f "$pidfile" ] || continue
+              kill -- -"$(cat "$pidfile")" 2>/dev/null || true
+              rm -f "$pidfile"
+            done
+
+            # Then fail fast if a port is still held by something that is NOT ours.
+            # Deliberately never kill by port: on this host published container ports
+            # are held by podman's gvproxy, and killing that would drop networking for
+            # every container on the machine, MongoDB included.
+            for port in 5173 5050; do
+              for attempt in 1 2 3 4 5; do
+                holder=$(lsof -nP -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | awk 'NR>1 {print $1; exit}')
+                [ -z "$holder" ] && break
+                sleep 1
+              done
+              if [ -n "$holder" ]; then
+                echo "::error::Port $port is already in use by '$holder' and is not a process this workflow started."
+                echo "If the holder is gvproxy, a podman container publishes $port - stop that container (podman ps) or move this service to a free port."
+                exit 1
+              fi
+            done
+
+            # ---- backend: archit/mern-records-backend, port 5050 ----------------
+            # npm, not pnpm — the backend ships package-lock.json.
+            cd "$GITHUB_WORKSPACE/mern-records-backend"
+            npm ci
+            # `npm start` is `node --env-file=config.env server`, which aborts when
+            # config.env is missing — and config.env is gitignored, so it never
+            # arrives with the checkout. Point it at the host's Podman MongoDB.
+            #
+            # The credentials are required, not optional: the container runs with
+            # MONGO_INITDB_ROOT_USERNAME/PASSWORD, so an anonymous URI connects and
+            # pings fine and then fails the first query with "Command find requires
+            # authentication" — which kills the process, because the routes have no
+            # error handling. authSource=admin is where the root user lives.
+            cat > config.env <<'ENV'
+            ATLAS_URI=mongodb://admin:admin@localhost:27017/?authSource=admin
+            PORT=5050
+            ENV
+            # set -m puts the server in its own process group so teardown can kill
+            # the whole tree with `kill -- -PID`, not just the npm wrapper.
+            set -m
+            npm start > /tmp/mern-backend.log 2>&1 &
+            echo $! > /tmp/mern-backend.pid
+
+            # ---- frontend: this repo, port 5173 --------------------------------
+            cd "$GITHUB_WORKSPACE/mern-records-frontend"
+            pnpm install --frozen-lockfile
+            set -m
+            # NOTE: pnpm forwards script args directly — do NOT use npm's `--`
+            # separator. `pnpm run dev -- --port 5173` silently drops the args and
+            # Vite starts on its default port instead.
+            pnpm run dev --host 127.0.0.1 --port 5173 > /tmp/mern-frontend-dev.log 2>&1 &
+            echo $! > /tmp/mern-frontend-dev.pid
+
+          # Ordered so a failure names the broken link instead of just "not ready":
+          # backend direct (backend + MongoDB), frontend root (Vite), then /record
+          # through Vite's proxy (the wiring the UI actually depends on).
+          targetReadyCheckCommand: |
+            curl -sf http://127.0.0.1:5050/record > /dev/null || { echo "backend 5050 not serving /record (is MongoDB up?)"; exit 1; }
+            curl -sf http://127.0.0.1:5173 > /dev/null || { echo "frontend 5173 not serving"; exit 1; }
+            curl -sf http://127.0.0.1:5173/record > /dev/null || { echo "Vite proxy 5173 -> 5050 not working"; exit 1; }
+
+          targetTeardownCommand: |
+            for pidfile in /tmp/mern-frontend-dev.pid /tmp/mern-backend.pid; do
+              [ -f "$pidfile" ] || continue
+              kill -- -"$(cat "$pidfile")" 2>/dev/null || true
+              rm -f "$pidfile"
+            done
