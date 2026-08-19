@@ -8,22 +8,23 @@ on:
   pull_request:
   workflow_dispatch:
 
-# One self-hosted runner serves this and the Testbot workflow, so cap redundant
-# work: superseded pushes to a PR cancel their in-flight validation. Pushes to
-# main are never cancelled.
+# This and the Testbot workflow now target the SAME single runner, so a PR runs
+# them one after another rather than in parallel. Cap redundant work: superseded
+# pushes to a PR cancel their in-flight validation. Pushes to main are never
+# cancelled.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   validate:
-    runs-on: [self-hosted, arm64, fusion-mac]
+    runs-on: [self-hosted, arm64, macos-host]
     steps:
       - uses: actions/checkout@v4
 
-      # This job runs on the fusion-mac Linux VM runner, which is provisioned with
-      # node/npm but not pnpm. Install it in-job rather than relying on host state,
-      # so the workflow is self-contained across both self-hosted runners.
+      # The macOS host does have pnpm on PATH, so this is no longer about supplying
+      # a missing tool: it pins the version to the one in package.json
+      # `packageManager`, independent of whatever the host happens to have installed.
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -37,10 +38,14 @@ jobs:
 
       - name: Start preview server
         run: |
+          # `set -m` rather than `setsid`: setsid is Linux-only and does not exist on
+          # macOS. Job control gives the server its own process group just the same,
+          # so teardown can kill the whole tree with `kill -- -PID`.
+          set -m
           # NOTE: pnpm forwards script args directly — do NOT use npm's `--`
           # separator, which pnpm silently swallows (Vite would then ignore
           # --host/--port and bind its default port).
-          setsid pnpm run preview --host 127.0.0.1 --port 4173 > preview.log 2>&1 &
+          pnpm run preview --host 127.0.0.1 --port 4173 > preview.log 2>&1 &
           echo $! > preview.pid
 
       - name: Wait for preview server and check content
@@ -60,7 +65,7 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm exec playwright install chromium chromium-headless-shell
 
-      # Runs the UI tests Skyramp Testbot generates into .skyramp/ (see
+      # Runs the UI tests Skyramp Testbot generates into tests/ (see
       # playwright.config.ts). --pass-with-no-tests keeps this green on branches
       # where no generated specs have been committed yet. The config's webServer
       # block starts the dev server on :5173, which is what the specs target.
@@ -69,4 +74,5 @@ jobs:
 
       - name: Teardown
         if: always()
-        run: kill -- -"$(cat preview.pid)" 2>/dev/null || true
+        run: |
+          [ -f preview.pid ] && kill -- -"$(cat preview.pid)" 2>/dev/null || true
