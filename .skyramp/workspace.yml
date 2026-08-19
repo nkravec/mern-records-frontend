@@ -25,7 +25,7 @@ services:
     api:
       authType: none
       authHeader: ""
-      baseUrl: http://localhost:5050/record
+      baseUrl: http://localhost:5050
     runtimeDetails:
       serverStartCommand: node --env-file=config.env server
       runtime: local
