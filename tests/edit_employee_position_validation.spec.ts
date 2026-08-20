@@ -8,7 +8,7 @@
 // 		--playwright-trace /Users/archit/actions-runner-mern-frontend-macos/_work/mern-records-frontend/mern-records-frontend/.skyramp/edit_position_validation_trace.zip
 
 // Import of required libraries
-import { test, newSkyrampPlaywrightPage, expect } from '@skyramp/skyramp';
+import { expect, newSkyrampPlaywrightPage, test } from '@skyramp/skyramp';
 
 const pageTimeout = 15000;
 
