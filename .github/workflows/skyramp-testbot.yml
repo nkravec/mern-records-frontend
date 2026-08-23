@@ -83,6 +83,10 @@ jobs:
           githubAppId: ${{ secrets.SKYRAMP_TESTBOT_APP_ID }}
           githubAppPrivateKey: ${{ secrets.SKYRAMP_TESTBOT_APP_PRIVATE_KEY }}
           workingDirectory: 'mern-records-frontend'
+          # Default is 3, which on this cross-repo PR filled every slot with UI
+          # tests and left all contract/integration candidates as recommendations
+          # only. Raised to see how a larger budget is allocated across types.
+          maxGenerate: 10
           # Read-only extra context for analysis. Tests and the report still land
           # in this repo (the primary checkout).
           relatedRepoPaths: |
