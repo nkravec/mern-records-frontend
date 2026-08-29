@@ -1,0 +1,74 @@
+[
+  {
+    "Source": "192.168.65.1:39998",
+    "Destination": "localhost",
+    "RequestBody": "{\"name\": \"Priya Raman\", \"position\": \"Platform Engineer\", \"level\": \"Junior\", \"department\": \"Infrastructure\"}",
+    "ResponseBody": "{\"acknowledged\": true, \"insertedId\": \"6a92f75823d73b4e0301abc1\"}",
+    "RequestHeaders": {
+      "Content-Type": [
+        "application/json"
+      ]
+    },
+    "ResponseHeaders": {
+      "Content-Type": [
+        "application/json"
+      ]
+    },
+    "Method": "POST",
+    "Path": "/record",
+    "QueryParams": {},
+    "StatusCode": 200,
+    "Port": 5050,
+    "Timestamp": "2026-08-29T15:22:30.315Z",
+    "Scheme": "http",
+    "scenarioName": "record-patch-partial-update-preserves-department"
+  },
+  {
+    "Source": "192.168.65.1:39998",
+    "Destination": "localhost",
+    "RequestBody": "{\"level\": \"Senior\"}",
+    "ResponseBody": "{\"acknowledged\": true, \"matchedCount\": 1, \"modifiedCount\": 1}",
+    "RequestHeaders": {
+      "Content-Type": [
+        "application/json"
+      ]
+    },
+    "ResponseHeaders": {
+      "Content-Type": [
+        "application/json"
+      ]
+    },
+    "Method": "PATCH",
+    "Path": "/record/6a92f75823d73b4e0301abc1",
+    "QueryParams": {},
+    "StatusCode": 200,
+    "Port": 5050,
+    "Timestamp": "2026-08-29T15:22:31.315Z",
+    "Scheme": "http",
+    "scenarioName": "record-patch-partial-update-preserves-department"
+  },
+  {
+    "Source": "192.168.65.1:39998",
+    "Destination": "localhost",
+    "RequestBody": "",
+    "ResponseBody": "{\"_id\": \"6a92f75823d73b4e0301abc1\", \"name\": \"Priya Raman\", \"position\": \"Platform Engineer\", \"level\": \"Senior\", \"department\": \"Infrastructure\"}",
+    "RequestHeaders": {
+      "Content-Type": [
+        "application/json"
+      ]
+    },
+    "ResponseHeaders": {
+      "Content-Type": [
+        "application/json"
+      ]
+    },
+    "Method": "GET",
+    "Path": "/record/6a92f75823d73b4e0301abc1",
+    "QueryParams": {},
+    "StatusCode": 200,
+    "Port": 5050,
+    "Timestamp": "2026-08-29T15:22:32.315Z",
+    "Scheme": "http",
+    "scenarioName": "record-patch-partial-update-preserves-department"
+  }
+]
