@@ -10,7 +10,7 @@ metadata:
 services:
   - serviceName: mern-records-frontend
     repository: nkravec/mern-records-frontend
-    language: javascript
+    language: typescript
     framework: playwright
     testDirectory: tests
     api:
