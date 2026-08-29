@@ -45,6 +45,8 @@ jobs:
           token: ${{ steps.skyramp-testbot-app-token.outputs.token }}
           persist-credentials: false
 
+      # Try the matching branch in the backend first so a cross-repo change is analyzed
+      # as one unit; fall back to the backend's default branch when there is none.
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         id: skyramp-checkout-mern-records-backend
         continue-on-error: true
@@ -65,7 +67,18 @@ jobs:
           token: ${{ steps.skyramp-testbot-app-token.outputs.token }}
           persist-credentials: false
 
-      - uses: skyramp/testbot@3d8f06f7223f2a7c187e4f3f3ed2b2e074770e8e # v0.11.10
+      # The frontend is a pnpm project (package.json `packageManager`); the runner
+      # image only ships npm.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+
+      - uses: skyramp/testbot@56fac3cc7b777cd08598ed7a7586f8d9733f3507 # v0.11.11
+        env:
+          # Non-POM code reuse (SkyrampUtils). v0.11.11 does not forward this itself,
+          # but the agent CLI passes the step environment through to the MCP server.
+          # Must be the string "1"; SKYRAMP_FEATURE_POM_REUSE stays unset (no page objects here).
+          SKYRAMP_FEATURE_UTILS_REUSE: "1"
         with:
           skyrampLicenseFile: ${{ secrets.SKYRAMP_LICENSE_FILE }}
           anthropicApiKey: ${{ secrets.SKYRAMP_TESTBOT_API_KEY }}
@@ -73,5 +86,47 @@ jobs:
           githubAppId: ${{ secrets.SKYRAMP_TESTBOT_APP_ID }}
           githubAppPrivateKey: ${{ secrets.SKYRAMP_TESTBOT_APP_PRIVATE_KEY }}
           workingDirectory: 'mern-records-frontend'
+          # Read-only extra context for analysis. Tests and the report still land in this repo.
           relatedRepoPaths: |
             ./mern-records-backend
+
+          # The reuse gates (verify, staging, report evidence) are not in the published
+          # @skyramp/mcp yet — run the MCP server from letsramp/mcp main. Drop these three
+          # inputs once the next @skyramp/mcp release ships.
+          skyrampMcpSource: github
+          skyrampMcpGithubRef: main
+          skyrampMcpGithubToken: ${{ secrets.SKYRAMP_ORG_READ_PAT }}
+
+          # All target commands run with cwd = workingDirectory
+          # ($GITHUB_WORKSPACE/mern-records-frontend). Three services, all started here:
+          # MongoDB (backend's docker-compose.yml), the Express API on :5050, and the
+          # Vite dev server on :5173 (which proxies /record to :5050).
+          targetSetupCommand: |
+            set -e
+
+            # ---- MongoDB (Docker) --------------------------------------------------
+            docker compose -f "$GITHUB_WORKSPACE/mern-records-backend/docker-compose.yml" up -d --wait
+
+            # ---- backend: nkravec/mern-records-backend, port 5050 -----------------
+            # npm, not pnpm — the backend ships package-lock.json. `npm start` is
+            # `node --env-file=config.env server` and config.env is gitignored.
+            cd "$GITHUB_WORKSPACE/mern-records-backend"
+            npm ci
+            printf 'ATLAS_URI=mongodb://localhost:27017/\nPORT=5050\n' > config.env
+            node seed.js
+            nohup npm start > /tmp/mern-backend.log 2>&1 &
+
+            # ---- frontend: this repo, port 5173 -----------------------------------
+            cd "$GITHUB_WORKSPACE/mern-records-frontend"
+            pnpm install --frozen-lockfile
+            # pnpm forwards script args directly — no `--` separator (npm-style
+            # `pnpm run dev -- --port` silently drops the args).
+            nohup pnpm run dev --host 127.0.0.1 --port 5173 > /tmp/mern-frontend-dev.log 2>&1 &
+
+          # Ordered so a failure names the broken link: backend direct (API + MongoDB),
+          # frontend root (Vite), then /record through Vite's proxy (what the UI uses).
+          targetReadyCheckCommand: |
+            curl -sf http://127.0.0.1:5050/record > /dev/null || { echo "backend 5050 not serving /record (is MongoDB up?)"; exit 1; }
+            curl -sf http://127.0.0.1:5173 > /dev/null || { echo "frontend 5173 not serving"; exit 1; }
+            curl -sf http://127.0.0.1:5173/record > /dev/null || { echo "Vite proxy 5173 -> 5050 not working"; exit 1; }
+          targetReadyCheckTimeout: '300'
