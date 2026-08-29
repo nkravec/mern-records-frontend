@@ -18,7 +18,7 @@ services:
       authHeader: ""
       baseUrl: http://localhost:5173
     runtimeDetails:
-      serverStartCommand: pnpm run dev --host 127.0.0.1 --port 5173
+      serverStartCommand: pnpm run dev --host 0.0.0.0 --port 5173
       runtime: local
   - serviceName: mern-records-backend
     repository: nkravec/mern-records-backend
