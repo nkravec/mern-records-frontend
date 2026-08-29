@@ -50,13 +50,17 @@ const Record = (props) => (
 export default function RecordList() {
   const [records, setRecords] = useState([]);
   const [search, setSearch] = useState("");
+  const [levelFilter, setLevelFilter] = useState("");
 
   // This method fetches the records from the database. A non-empty search term
   // is passed through to the API, which matches it against name, position and
-  // department.
+  // department; a selected level narrows the list to that level only.
   useEffect(() => {
     async function getRecords() {
-      const query = search ? `?q=${encodeURIComponent(search)}` : "";
+      const params = new URLSearchParams();
+      if (search) params.set("q", search);
+      if (levelFilter) params.set("level", levelFilter);
+      const query = params.toString() ? `?${params}` : "";
       const response = await fetch(`/record/${query}`);
       if (!response.ok) {
         const message = `An error occurred: ${response.statusText}`;
@@ -68,7 +72,7 @@ export default function RecordList() {
     }
     getRecords();
     return;
-  }, [search, records.length]);
+  }, [search, levelFilter, records.length]);
 
   // This method will delete a record
   async function deleteRecord(id) {
@@ -96,7 +100,7 @@ export default function RecordList() {
   return (
     <>
       <h3 className="text-lg font-semibold p-4">Employee Records</h3>
-      <div className="px-4 pb-4">
+      <div className="px-4 pb-4 flex flex-col gap-3 sm:flex-row">
         <input
           type="text"
           id="search"
@@ -106,6 +110,18 @@ export default function RecordList() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        <select
+          id="levelFilter"
+          aria-label="Filter by level"
+          className="flex h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          value={levelFilter}
+          onChange={(e) => setLevelFilter(e.target.value)}
+        >
+          <option value="">All levels</option>
+          <option value="Intern">Intern</option>
+          <option value="Junior">Junior</option>
+          <option value="Senior">Senior</option>
+        </select>
       </div>
       <div className="border rounded-lg overflow-hidden">
         <div className="relative w-full overflow-auto">
