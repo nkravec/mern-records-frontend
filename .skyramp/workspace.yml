@@ -1,0 +1,34 @@
+# Skyramp Workspace Configuration
+workspace:
+  repoName: nkravec/mern-records-frontend
+  repoUrl: https://github.com/nkravec/mern-records-frontend
+metadata:
+  schemaVersion: v1
+  executorVersion: v1.3.40
+  createdAt: "2026-08-29T14:22:46.339Z"
+  updatedAt: "2026-08-29T14:22:55.027Z"
+services:
+  - serviceName: mern-records-frontend
+    repository: nkravec/mern-records-frontend
+    language: javascript
+    framework: playwright
+    testDirectory: tests
+    api:
+      authType: none
+      authHeader: ""
+      baseUrl: http://localhost:5173
+    runtimeDetails:
+      serverStartCommand: pnpm run dev --host 127.0.0.1 --port 5173
+      runtime: local
+  - serviceName: mern-records-backend
+    repository: nkravec/mern-records-backend
+    language: javascript
+    framework: playwright
+    testDirectory: tests/skyramp/mern-records-backend
+    api:
+      authType: none
+      authHeader: ""
+      baseUrl: http://localhost:5050
+    runtimeDetails:
+      serverStartCommand: npm start
+      runtime: local
