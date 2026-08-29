@@ -38,6 +38,27 @@ jobs:
           private-key: ${{ secrets.SKYRAMP_TESTBOT_APP_PRIVATE_KEY }}
           repositories: mern-records-frontend,mern-records-backend
 
+      # Resolve the PR head branch for every trigger. `github.head_ref` is only set on
+      # pull_request events; on `@skyramp-testbot` comment re-runs (issue_comment) it is
+      # empty and `github.ref_name` is the default branch, so the related-repo checkout
+      # below would silently fall back to the backend's `main` (seen on run 33258877190).
+      - name: Resolve PR head branch
+        id: pr
+        env:
+          GH_TOKEN: ${{ steps.skyramp-testbot-app-token.outputs.token }}
+        run: |
+          if [ -n "${{ inputs['mern-records-backend_ref'] }}" ]; then
+            ref="${{ inputs['mern-records-backend_ref'] }}"
+          elif [ -n "${{ github.head_ref }}" ]; then
+            ref="${{ github.head_ref }}"
+          elif [ "${{ github.event_name }}" = "issue_comment" ]; then
+            ref=$(gh pr view "${{ github.event.issue.number }}" --repo "${{ github.repository }}" --json headRefName -q .headRefName)
+          else
+            ref="${{ github.ref_name }}"
+          fi
+          echo "head_ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "Related repo ref: $ref"
+
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
@@ -54,7 +75,7 @@ jobs:
           repository: nkravec/mern-records-backend
           path: mern-records-backend
           fetch-depth: 0
-          ref: ${{ inputs['mern-records-backend_ref'] || github.head_ref || github.ref_name }}
+          ref: ${{ steps.pr.outputs.head_ref }}
           token: ${{ steps.skyramp-testbot-app-token.outputs.token }}
           persist-credentials: false
 
