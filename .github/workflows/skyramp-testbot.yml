@@ -90,12 +90,10 @@ jobs:
           relatedRepoPaths: |
             ./mern-records-backend
 
-          # The reuse gates (verify, staging, report evidence) are not in the published
-          # @skyramp/mcp yet — run the MCP server from letsramp/mcp main. Drop these three
-          # inputs once the next @skyramp/mcp release ships.
-          skyrampMcpSource: github
-          skyrampMcpGithubRef: main
-          skyrampMcpGithubToken: ${{ secrets.SKYRAMP_ORG_READ_PAT }}
+          # The reuse gates (verify, staging, report evidence) are not in @skyramp/mcp
+          # `latest` (0.3.5) yet; 0.3.6-rc.1 on the `next` tag matches letsramp/mcp main.
+          # Drop this pin once the next stable @skyramp/mcp release ships.
+          skyrampMcpVersion: '0.3.6-rc.1'
 
           # All target commands run with cwd = workingDirectory
           # ($GITHUB_WORKSPACE/mern-records-frontend). Three services, all started here:
